@@ -108,7 +108,9 @@ public class ZitrusfalterApplication {
                     .map(Player::getUser)
                     .map(User::getEffectiveName)
                     .collect(atLeastOneOrElseGet(() -> "%s wurde aufgerufen!".formatted(name)))
-                    .collect(Collectors.joining("\n- ", "Wir haben Gewinner!\n- ", ""));
+                    .collect(Collectors.joining("\n- ",
+                            "# Wir haben Gewinner!\nAlle Gewinner müssen selbst Bingo aufrufen, bevor der nächste call erfolgt\n- ",
+                            ""));
         }
     }
 
