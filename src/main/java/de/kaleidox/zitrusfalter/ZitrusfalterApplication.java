@@ -23,6 +23,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
@@ -38,9 +39,9 @@ public class ZitrusfalterApplication {
         SpringApplication.run(ZitrusfalterApplication.class, args);
     }
 
-    @Autowired PlayerRepo     players;
-    @Autowired BingoRoundRepo rounds;
-    @Autowired FoodItemRepo   foods;
+    @Autowired @Lazy PlayerRepo     players;
+    @Autowired @Lazy BingoRoundRepo rounds;
+    @Autowired @Lazy FoodItemRepo   foods;
 
     @Bean
     public FileHandle configDir() {
@@ -99,7 +100,7 @@ public class ZitrusfalterApplication {
     @Command
     public static class bingo {
         @Command
-        public String call(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
+        public static String call(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
             return app.foods.findById(name)
                     .flatMap(food -> of(app.rounds.findAll()).max(Comparator.comparingLong(BingoRound::getNumber))
                             .filter(round -> round.getEntries().add(food)))
@@ -117,14 +118,14 @@ public class ZitrusfalterApplication {
     @Command
     public static class food {
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public String list(ZitrusfalterApplication app) {
+        public static String list(ZitrusfalterApplication app) {
             return "Alle Einträge:" + of(app.foods.findAll()).map(FoodItem::getName)
                     .collect(atLeastOneOrElseGet(() -> "Es gibt keine Einträge"))
                     .collect(Collectors.joining("\n- ", "- ", ""));
         }
 
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public String add(ZitrusfalterApplication app, @Command.Arg("name") String name, @Command.Arg(value = "emoji", required = false) String emoji) {
+        public static String add(ZitrusfalterApplication app, @Command.Arg("name") String name, @Command.Arg(value = "emoji", required = false) String emoji) {
             if (app.foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank()) emoji = null;
             var item = new FoodItem(name, emoji);
@@ -133,7 +134,7 @@ public class ZitrusfalterApplication {
         }
 
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public String remove(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
+        public static String remove(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
             if (!app.foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
             app.foods.deleteById(name);
             return "Eintrag gelöscht: `%s`".formatted(name);
