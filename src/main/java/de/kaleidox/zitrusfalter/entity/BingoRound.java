@@ -14,11 +14,9 @@ import java.util.stream.Stream;
 public class BingoRound {
     @Id         long           number;
     @OneToMany  Set<BingoCard> cards;
-    @ManyToMany Set<FoodItem>  entries;
+    @ManyToMany Set<FoodItem>  calls;
 
     public Stream<Player> scanWinners() {
-        return cards.stream()
-                .filter(card -> false/* todo */)
-                .map(BingoCard::getPlayer);
+        return cards.stream().filter(BingoCard::scanWin).map(BingoCard::getPlayer);
     }
 }

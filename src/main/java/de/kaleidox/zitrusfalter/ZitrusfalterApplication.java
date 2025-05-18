@@ -5,13 +5,13 @@ import de.kaleidox.zitrusfalter.entity.FoodItem;
 import de.kaleidox.zitrusfalter.entity.Player;
 import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
-import de.kaleidox.zitrusfalter.repo.PlayerRepo;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import de.kaleidox.zitrusfalter.util.AutoFillProvider;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import org.comroid.annotations.Description;
 import org.comroid.api.config.ConfigurationManager;
 import org.comroid.api.func.ext.Context;
 import org.comroid.api.func.util.Command;
@@ -23,13 +23,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 import static org.comroid.api.func.util.Streams.*;
 
 @SpringBootApplication
@@ -38,10 +39,6 @@ public class ZitrusfalterApplication {
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
     }
-
-    @Autowired @Lazy PlayerRepo     players;
-    @Autowired @Lazy BingoRoundRepo rounds;
-    @Autowired @Lazy FoodItemRepo   foods;
 
     @Bean
     public FileHandle configDir() {
@@ -99,11 +96,14 @@ public class ZitrusfalterApplication {
 
     @Command
     public static class bingo {
-        @Command
-        public static String call(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
-            return app.foods.findById(name)
-                    .flatMap(food -> of(app.rounds.findAll()).max(Comparator.comparingLong(BingoRound::getNumber))
-                            .filter(round -> round.getEntries().add(food)))
+        @Command(permission = "8589934592")
+        @Description("Füge eine Speise dem aktuellen Bingo-Pool hinzu")
+        public static String add(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) @Description("Name der Speise") String name
+        ) {
+            return bean(FoodItemRepo.class).findById(name)
+                    .flatMap(food -> of(bean(BingoRoundRepo.class).findAll()).max(Comparator.comparingLong(BingoRound::getNumber))
+                            .filter(round -> round.getCalls().add(food)))
                     .stream()
                     .flatMap(BingoRound::scanWinners)
                     .map(Player::getUser)
@@ -113,30 +113,44 @@ public class ZitrusfalterApplication {
                             "# Wir haben Gewinner!\nAlle Gewinner müssen selbst Bingo aufrufen, bevor der nächste call erfolgt\n- ",
                             ""));
         }
+
+        @Command(privacy = Command.PrivacyLevel.PUBLIC)
+        public static String shout() {
+        }
     }
 
     @Command
     public static class food {
-        @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public static String list(ZitrusfalterApplication app) {
-            return "Alle Einträge:" + of(app.foods.findAll()).map(FoodItem::getName)
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Listet alle Speisen im gesamten Pool")
+        public static String list() {
+            return "Alle Einträge:\n" + of(bean(FoodItemRepo.class).findAll()).map(Objects::toString)
                     .collect(atLeastOneOrElseGet(() -> "Es gibt keine Einträge"))
                     .collect(Collectors.joining("\n- ", "- ", ""));
         }
 
-        @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public static String add(ZitrusfalterApplication app, @Command.Arg("name") String name, @Command.Arg(value = "emoji", required = false) String emoji) {
-            if (app.foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
-            if (emoji.isBlank()) emoji = null;
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description({ "Füge eine Speise dem Pool hinzu", "Achtung: Name kann nicht bearbeitet werden, nachdem die Speise in einem Pool genutzt wurde" })
+        public static String add(
+                @Command.Arg("name") @Description("Name der Speise") String name,
+                @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            if (foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
+            if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
             var item = new FoodItem(name, emoji);
-            app.foods.save(item);
+            foods.save(item);
             return "Eintrag erstellt:\n- %s".formatted(item);
         }
 
-        @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public static String remove(ZitrusfalterApplication app, @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) String name) {
-            if (!app.foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
-            app.foods.deleteById(name);
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description({ "Entferne eine Speise aus dem Pool", "Kann Probleme mit vergangenen Runden verursachen" })
+        public static String remove(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) @Description("Name der Speise") String name
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            if (!foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
+            foods.deleteById(name);
             return "Eintrag gelöscht: `%s`".formatted(name);
         }
     }
