@@ -1,5 +1,6 @@
 package de.kaleidox.zitrusfalter;
 
+import de.kaleidox.zitrusfalter.entity.BingoCard;
 import de.kaleidox.zitrusfalter.entity.BingoRound;
 import de.kaleidox.zitrusfalter.entity.FoodItem;
 import de.kaleidox.zitrusfalter.entity.Player;
@@ -26,7 +27,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
-import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -97,13 +98,23 @@ public class ZitrusfalterApplication {
     @Command
     public static class bingo {
         @Command(permission = "8589934592")
+        @Description("Starte eine neue Runde")
+        public static String start() {
+            var rounds = ApplicationContextProvider.bean(BingoRoundRepo.class);
+            if (rounds.current().isPresent()) throw new Command.Error("Es ist bereits eine Runde im Gange");
+            long number = rounds.nextNumber();
+            var  round  = new BingoRound(number, new HashSet<>(), new HashSet<>(), new HashSet<>(), false, 5);
+            rounds.save(round);
+            return "Runde **%d** wurde gestartet".formatted(number);
+        }
+
+        @Command(permission = "8589934592")
         @Description("Füge eine Speise dem aktuellen Bingo-Pool hinzu")
-        public static String add(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) @Description("Name der Speise") String name
+        public static String call(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
         ) {
             return bean(FoodItemRepo.class).findById(name)
-                    .flatMap(food -> of(bean(BingoRoundRepo.class).findAll()).max(Comparator.comparingLong(BingoRound::getNumber))
-                            .filter(round -> round.getCalls().add(food)))
+                    .flatMap(food -> bean(BingoRoundRepo.class).current().filter(round -> round.getCalls().add(food)))
                     .stream()
                     .flatMap(BingoRound::scanWinners)
                     .map(Player::getUser)
@@ -114,8 +125,48 @@ public class ZitrusfalterApplication {
                             ""));
         }
 
+        @Command
+        @Description("Trete der aktuellen Runde bei")
+        public static String join(User user) {
+            return bean(BingoRoundRepo.class).current()
+                    .map(round -> round.createCard(user))
+                    .map($ -> "Deine Karte wurde erstellt")
+                    .orElse("Es läuft derzeit keine Runde");
+        }
+
+        @Command
+        @Description("Markiere eine Speise auf deiner Karte")
+        public static String mark(
+                User user, @Command.Arg(value = "name",
+                                        autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("Name der Speise") String name
+        ) {
+            return bean(FoodItemRepo.class).findById(name)
+                    .stream()
+                    .flatMap(food -> bean(BingoRoundRepo.class).current()
+                            .stream()
+                            .flatMap(round -> round.getCards().stream())
+                            .filter(card -> card.getPlayer().getUser().equals(user))
+                            .filter(card -> card.getCalls().add(food))
+                            .filter(BingoCard::scanWin)
+                            .map(BingoCard::getPlayer)
+                            .map(Player::getUser)
+                            .map(User::getEffectiveName)
+                            .collect(atLeastOneOrElseGet(() -> "%s wurde markiert!".formatted(food))))
+                    .collect(Collectors.joining("\n- ",
+                            "# Wir haben Gewinner!\nAlle Gewinner müssen selbst Bingo aufrufen, bevor der nächste call erfolgt\n- ",
+                            ""));
+        }
+
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        public static String shout() {
+        @Description("Rufe 'Bingo!' wenn du soweit bist")
+        public static String shout(User user) {
+            return bean(BingoRoundRepo.class).current().stream()
+                    .flatMap(round -> round.getCards().stream())
+                    .filter(card -> card.getPlayer().getUser().equals(user))
+                    .findAny()
+                    .filter(BingoCard::scanWin)
+                    .map($ -> "Bingo!")
+                    .orElseThrow(() -> new Command.Error("Du hast noch kein Bingo"));
         }
     }
 
@@ -146,7 +197,7 @@ public class ZitrusfalterApplication {
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
         @Description({ "Entferne eine Speise aus dem Pool", "Kann Probleme mit vergangenen Runden verursachen" })
         public static String remove(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.FoodByName.class) @Description("Name der Speise") String name
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
         ) {
             var foods = bean(FoodItemRepo.class);
             if (!foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
