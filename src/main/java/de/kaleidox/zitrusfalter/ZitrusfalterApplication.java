@@ -12,6 +12,9 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.comroid.annotations.Description;
 import org.comroid.api.config.ConfigurationManager;
 import org.comroid.api.func.ext.Context;
@@ -39,6 +42,16 @@ import static org.comroid.api.func.util.Streams.*;
 public class ZitrusfalterApplication {
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
+    }
+
+    @Command(permission = "8")
+    public static MessageCreateData test(User user) {
+        return new MessageCreateBuilder().setFiles(FileUpload.fromData(new BingoRound(-1,
+                new HashSet<>(),
+                new HashSet<>(),
+                new HashSet<>(),
+                false,
+                5).createCard(user).createImage(), "card.png")).build();
     }
 
     @Bean
@@ -127,10 +140,12 @@ public class ZitrusfalterApplication {
 
         @Command
         @Description("Trete der aktuellen Runde bei")
-        public static String join(User user) {
+        public static Object join(User user) {
             return bean(BingoRoundRepo.class).current()
                     .map(round -> round.createCard(user))
-                    .map($ -> "Deine Karte wurde erstellt")
+                    .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
+                            .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                            .build())
                     .orElse("Es läuft derzeit keine Runde");
         }
 
@@ -160,7 +175,8 @@ public class ZitrusfalterApplication {
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Rufe 'Bingo!' wenn du soweit bist")
         public static String shout(User user) {
-            return bean(BingoRoundRepo.class).current().stream()
+            return bean(BingoRoundRepo.class).current()
+                    .stream()
                     .flatMap(round -> round.getCards().stream())
                     .filter(card -> card.getPlayer().getUser().equals(user))
                     .findAny()
