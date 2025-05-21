@@ -32,6 +32,7 @@ import org.springframework.core.annotation.Order;
 import javax.sql.DataSource;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
@@ -45,13 +46,13 @@ public class ZitrusfalterApplication {
     }
 
     @Command(permission = "8")
-    public static MessageCreateData test(User user) {
-        return new MessageCreateBuilder().setFiles(FileUpload.fromData(new BingoRound(-1,
+    public static CompletableFuture<MessageCreateData> test(User user) {
+        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setFiles(FileUpload.fromData(new BingoRound(-1,
                 new HashSet<>(),
                 new HashSet<>(),
                 new HashSet<>(),
                 false,
-                5).createCard(user).createImage(), "card.png")).build();
+                5).createCard(user).createImage(), "card.png")).build());
     }
 
     @Bean

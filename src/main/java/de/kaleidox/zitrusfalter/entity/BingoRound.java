@@ -37,11 +37,12 @@ public class BingoRound {
 
         var rng     = new Random();
         var lim     = size * size;
+        var mid     = (int) Math.ceil(size / 2f) - 1;
         var entries = new HashMap<Integer, FoodItem>(lim);
         var foods   = Streams.of(ApplicationContextProvider.bean(FoodItemRepo.class).findAll()).collect(Collectors.toList());
 
         for (var i = 0; i < lim; i++) {
-            if (i == Math.ceil(size / 2f)) continue;
+            if ((i / size) == mid && i % size == mid) continue;
 
             var value = foods.remove(rng.nextInt(foods.size()));
             entries.put(i, value);

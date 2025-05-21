@@ -1,6 +1,5 @@
 package de.kaleidox.zitrusfalter.entity;
 
-import de.kaleidox.zitrusfalter.ZitrusfalterApplication;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
@@ -8,8 +7,11 @@ import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.comroid.api.Polyfill;
 import org.comroid.api.data.Vector;
 import org.comroid.api.func.util.Command;
+import org.comroid.api.func.util.Stopwatch;
 import org.jetbrains.annotations.NotNull;
 
 import javax.imageio.ImageIO;
@@ -17,23 +19,48 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 @Data
+@Slf4j
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
 public class BingoCard {
-    public static final Vector.N2                       START     = new Vector.N2(380, 800);
-    public static final int                             INCREMENT = 320;
-    @Id @ManyToOne      BingoRound                      round;
-    @ManyToOne          Player                          player;
-    @ManyToMany         Map<@NotNull Integer, FoodItem> entries;
-    @ManyToMany         Set<FoodItem>                   calls;
+    public static final Vector.N2 START          = new Vector.N2(380, 490);
+    public static final int       INCREMENT      = 320;
+    public static final URL       BACKGROUND_URL = Polyfill.url("https://github.com/burdoto/zitrusfalter/blob/main/assets/background.png?raw=true");
+    public static final File      BACKGROUND_CACHE;
+
+    static {
+        var stopwatch = Stopwatch.start(BACKGROUND_URL);
+        try {
+            BACKGROUND_CACHE = File.createTempFile("background", ".png");
+            BACKGROUND_CACHE.deleteOnExit();
+
+            try (var resource = BACKGROUND_URL.openStream(); var fos = new FileOutputStream(BACKGROUND_CACHE)) {
+                resource.transferTo(fos);
+            } catch (Exception e) {
+                throw new Command.Error("Hintergrund kann nicht geladen werden", e);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create temp file", e);
+        }
+
+        log.info("Background image cached in {}ms at {}", stopwatch.stop().toMillis(), BACKGROUND_CACHE.getAbsolutePath());
+    }
+
+    @Id @ManyToOne BingoRound                      round;
+    @ManyToOne     Player                          player;
+    @ManyToMany    Map<@NotNull Integer, FoodItem> entries;
+    @ManyToMany    Set<FoodItem>                   calls;
     int size = 5;
 
     public boolean scanWin() {
@@ -64,17 +91,12 @@ public class BingoCard {
         return false;
     }
 
-    private int id(int x, int y) {
-        return x + (y * size);
-    }
-
     public InputStream createImage() {
         BufferedImage img;
 
         // load background
-        var bgRes = ZitrusfalterApplication.class.getResource("background.png");
-        try {
-            img = ImageIO.read(Objects.requireNonNull(bgRes, "Ressource 'background.png' existiert nicht"));
+        try (var fis = new FileInputStream(BACKGROUND_CACHE)) {
+            img = ImageIO.read(fis);
         } catch (Exception e) {
             throw new Command.Error("Hintergrund kann nicht geladen werden", e);
         }
@@ -82,13 +104,20 @@ public class BingoCard {
         // create image
         var g2 = img.createGraphics();
         g2.setColor(Color.BLACK);
+        g2.setFont(new Font(g2.getFont().getName(), Font.PLAIN, 38));
+        var metrics = g2.getFontMetrics();
+
         try {
-            for (var row = 0; row < size; row++) {
-                var rowI = START.addi(Vector.UnitY.muli(row * INCREMENT));
-                for (var col = 0; col < size; col++) {
-                    var cell = rowI.addi(Vector.UnitX.muli(col * INCREMENT));
-                    var item = entries.get(id(row, col));
-                    g2.drawString(item.toString(), (int) cell.getX(), (int) cell.getY());
+            for (var y = 0; y < size; y++) {
+                var left = START.addi(Vector.UnitY.muli(y * INCREMENT));
+                for (var x = 0; x < size; x++) {
+                    var cell = left.addi(Vector.UnitX.muli(x * INCREMENT));
+                    var item = entries.get(id(x, y));
+                    if (item == null) continue;
+
+                    var str    = item.getName();
+                    var offset = metrics.stringWidth(str) / 2;
+                    g2.drawString(str, (int) cell.getX() - offset, (int) cell.getY());
                 }
             }
         } finally {
@@ -105,5 +134,9 @@ public class BingoCard {
         }
 
         return new ByteArrayInputStream(buf);
+    }
+
+    private int id(int x, int y) {
+        return x + (y * size);
     }
 }
