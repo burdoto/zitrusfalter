@@ -15,6 +15,7 @@ import org.comroid.api.func.util.Streams;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -49,6 +50,10 @@ public class BingoRound {
         }
 
         return new BingoCard(this, player, entries, new HashSet<>(), size);
+    }
+
+    public Optional<BingoCard> getCard(User user) {
+        return cards.stream().filter(card -> card.player.userId == user.getIdLong()).findAny();
     }
 
     public Stream<Player> scanWinners() {

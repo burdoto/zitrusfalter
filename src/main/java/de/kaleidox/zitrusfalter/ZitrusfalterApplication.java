@@ -8,6 +8,7 @@ import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import de.kaleidox.zitrusfalter.util.AutoFillProvider;
+import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.User;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 import static org.comroid.api.func.util.Streams.*;
 
+@Slf4j
 @SpringBootApplication
 @ComponentScan(basePackageClasses = ApplicationContextProvider.class)
 public class ZitrusfalterApplication {
@@ -127,10 +129,12 @@ public class ZitrusfalterApplication {
         public static String call(
                 @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
         ) {
-            return bean(FoodItemRepo.class).findById(name)
-                    .flatMap(food -> bean(BingoRoundRepo.class).current().filter(round -> round.getCalls().add(food)))
-                    .stream()
-                    .flatMap(BingoRound::scanWinners)
+            var food  = bean(FoodItemRepo.class).findById(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
+            var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
+
+            if (!round.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
+
+            return round.scanWinners()
                     .map(Player::getUser)
                     .map(User::getEffectiveName)
                     .collect(atLeastOneOrElseGet(() -> "%s wurde aufgerufen!".formatted(name)))
@@ -156,21 +160,14 @@ public class ZitrusfalterApplication {
                 User user, @Command.Arg(value = "name",
                                         autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("Name der Speise") String name
         ) {
-            return bean(FoodItemRepo.class).findById(name)
-                    .stream()
-                    .flatMap(food -> bean(BingoRoundRepo.class).current()
-                            .stream()
-                            .flatMap(round -> round.getCards().stream())
-                            .filter(card -> card.getPlayer().getUser().equals(user))
-                            .filter(card -> card.getCalls().add(food))
-                            .filter(BingoCard::scanWin)
-                            .map(BingoCard::getPlayer)
-                            .map(Player::getUser)
-                            .map(User::getEffectiveName)
-                            .collect(atLeastOneOrElseGet(() -> "%s wurde markiert!".formatted(food))))
-                    .collect(Collectors.joining("\n- ",
-                            "# Wir haben Gewinner!\nAlle Gewinner müssen selbst Bingo aufrufen, bevor der nächste call erfolgt\n- ",
-                            ""));
+            var food  = bean(FoodItemRepo.class).findById(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
+            var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
+            var card  = round.getCard(user).orElseThrow(() -> new Command.Error("Du hast keine Karten"));
+
+            if (!card.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
+            if (card.scanWin()) log.info("{} hat eine Gewinnerkarte!", user.getEffectiveName());
+
+            return "%s wurde markiert".formatted(food);
         }
 
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
