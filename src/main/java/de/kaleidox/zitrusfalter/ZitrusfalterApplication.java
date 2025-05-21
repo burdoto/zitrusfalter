@@ -164,6 +164,7 @@ public class ZitrusfalterApplication {
             var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
             var card  = round.getCard(user).orElseThrow(() -> new Command.Error("Du hast keine Karten"));
 
+            if (!round.getCalls().contains(food)) throw new Command.Error("Diese Speise ist nicht aufgerufen worden");
             if (!card.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
             if (card.scanWin()) log.info("{} hat eine Gewinnerkarte!", user.getEffectiveName());
 
