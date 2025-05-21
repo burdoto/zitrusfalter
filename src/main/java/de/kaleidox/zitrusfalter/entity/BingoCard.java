@@ -36,6 +36,7 @@ import java.util.Set;
 public class BingoCard {
     public static final Vector.N2 START          = new Vector.N2(380, 490);
     public static final int       INCREMENT      = 320;
+    public static final String    CROSS          = "❌";
     public static final URL       BACKGROUND_URL = Polyfill.url("https://github.com/burdoto/zitrusfalter/blob/main/assets/background.png?raw=true");
     public static final File      BACKGROUND_CACHE;
 
@@ -102,10 +103,9 @@ public class BingoCard {
         }
 
         // create image
-        var g2 = img.createGraphics();
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font(g2.getFont().getName(), Font.PLAIN, 38));
-        var metrics = g2.getFontMetrics();
+        var g2        = img.createGraphics();
+        var fontText  = new Font(g2.getFont().getName(), Font.PLAIN, 38);
+        var fontCross = new Font(g2.getFont().getName(), Font.PLAIN, 180);
 
         try {
             for (var y = 0; y < size; y++) {
@@ -115,9 +115,21 @@ public class BingoCard {
                     var item = entries.get(id(x, y));
                     if (item == null) continue;
 
-                    var str    = item.getName();
-                    var offset = metrics.stringWidth(str) / 2;
+                    // draw entry names
+                    var str = item.getName();
+                    g2.setFont(fontText);
+                    var metrics = g2.getFontMetrics();
+                    var offset  = metrics.stringWidth(str) / 2;
+                    g2.setColor(Color.BLACK);
                     g2.drawString(str, (int) cell.getX() - offset, (int) cell.getY());
+
+                    // cross out called entries
+                    if (!calls.contains(item)) continue;
+                    g2.setFont(fontCross);
+                    metrics = g2.getFontMetrics();
+                    offset  = metrics.stringWidth(CROSS) / 2;
+                    g2.setColor(Color.RED);
+                    g2.drawString(CROSS, (int) cell.getX() - offset, (int) cell.getY() + 55);
                 }
             }
         } finally {
