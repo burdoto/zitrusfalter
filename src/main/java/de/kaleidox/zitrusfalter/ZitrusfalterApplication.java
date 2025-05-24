@@ -221,8 +221,8 @@ public class ZitrusfalterApplication {
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Ändere den Namen einer Speise")
         public static String rename(
-                @Command.Arg(value = "old_name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Alter Name der Speise") String oldName,
-                @Command.Arg(value = "new_name") @Description("Neuer Name der Speise") String newName
+                @Command.Arg(value = "old", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Alter Name der Speise") String oldName,
+                @Command.Arg(value = "new") @Description("Neuer Name der Speise") String newName
         ) {
             var foods = bean(FoodItemRepo.class);
             var item  = foods.findByName(oldName).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(oldName)));
