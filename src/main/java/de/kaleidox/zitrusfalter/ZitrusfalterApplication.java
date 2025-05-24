@@ -112,7 +112,9 @@ public class ZitrusfalterApplication {
     @Bean
     public Command.Manager.Adapter$JDA cmdrJdaAdapter(@Autowired Command.Manager cmdr, @Autowired JDA jda) throws InterruptedException {
         try {
-            return cmdr.new Adapter$JDA(jda.awaitReady());
+            var adp = cmdr.new Adapter$JDA(jda.awaitReady());
+            adp.setPurgeCommands(true);
+            return adp;
         } finally {
             cmdr.initialize();
         }
@@ -136,7 +138,7 @@ public class ZitrusfalterApplication {
         public static String call(
                 @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
         ) {
-            var food  = bean(FoodItemRepo.class).findById(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
+            var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
             var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
 
             if (!round.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
@@ -167,7 +169,7 @@ public class ZitrusfalterApplication {
                 User user, @Command.Arg(value = "name",
                                         autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("Name der Speise") String name
         ) {
-            var food  = bean(FoodItemRepo.class).findById(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
+            var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
             var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
             var card  = round.getCard(user).orElseThrow(() -> new Command.Error("Du hast keine Karten"));
 
@@ -209,11 +211,24 @@ public class ZitrusfalterApplication {
                 @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji
         ) {
             var foods = bean(FoodItemRepo.class);
-            if (foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
+            if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
             var item = new FoodItem(name, emoji);
             foods.save(item);
             return "Eintrag erstellt:\n- %s".formatted(item);
+        }
+
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Ändere den Namen einer Speise")
+        public static String rename(
+                @Command.Arg(value = "old_name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Alter Name der Speise") String oldName,
+                @Command.Arg(value = "new_name") @Description("Neuer Name der Speise") String newName
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            var item  = foods.findByName(oldName).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(oldName)));
+            item.setName(newName);
+            foods.save(item);
+            return "Eintrag aktualisiert:\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
@@ -223,7 +238,7 @@ public class ZitrusfalterApplication {
                 @Command.Arg("emoji") @Description("Emoji der Speise") String emoji
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findById(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
             item.setEmoji(emoji);
             foods.save(item);
             return "Eintrag aktualisiert:\n- %s".formatted(item);
@@ -235,8 +250,8 @@ public class ZitrusfalterApplication {
                 @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
         ) {
             var foods = bean(FoodItemRepo.class);
-            if (!foods.existsById(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
-            foods.deleteById(name);
+            if (!foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
+            foods.deleteByName(name);
             return "Eintrag gelöscht: `%s`".formatted(name);
         }
     }
