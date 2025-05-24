@@ -4,6 +4,7 @@ import de.kaleidox.zitrusfalter.entity.BingoCard;
 import de.kaleidox.zitrusfalter.entity.BingoRound;
 import de.kaleidox.zitrusfalter.entity.FoodItem;
 import de.kaleidox.zitrusfalter.entity.Player;
+import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
@@ -147,7 +148,7 @@ public class ZitrusfalterApplication {
         @Description("Trete der aktuellen Runde bei")
         public static Object join(User user) {
             return bean(BingoRoundRepo.class).current()
-                    .map(round -> round.createCard(user))
+                    .map(round -> bean(BingoCardRepo.class).save(round.createCard(user)))
                     .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
                             .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
                             .build())
@@ -196,7 +197,7 @@ public class ZitrusfalterApplication {
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description({ "Füge eine Speise dem Pool hinzu", "Achtung: Name kann nicht bearbeitet werden, nachdem die Speise in einem Pool genutzt wurde" })
+        @Description({ "Füge eine Speise dem Pool hinzu", "Achtung: Name kann nicht bearbeitet werden" })
         public static String add(
                 @Command.Arg("name") @Description("Name der Speise") String name,
                 @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji
@@ -207,6 +208,19 @@ public class ZitrusfalterApplication {
             var item = new FoodItem(name, emoji);
             foods.save(item);
             return "Eintrag erstellt:\n- %s".formatted(item);
+        }
+
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Ändere das Emoji einer Speise")
+        public static String emoji(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
+                @Command.Arg("emoji") @Description("Emoji der Speise") String emoji
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            var item  = foods.findById(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            item.setEmoji(emoji);
+            foods.save(item);
+            return "Eintrag aktualisiert:\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)

@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,7 +30,7 @@ public class BingoRound {
     @Id         long           number;
     @OneToMany  Set<BingoCard> cards;
     @ManyToMany Set<FoodItem>  calls;
-    @ManyToMany Set<BingoCard> winners = new HashSet<>();
+    @ManyToMany Set<Player> winners = new HashSet<>();
     boolean ended = false;
     int     size  = 5;
 
@@ -49,7 +50,7 @@ public class BingoRound {
             entries.put(i, value);
         }
 
-        return new BingoCard(this, player, entries, new HashSet<>(), size);
+        return new BingoCard(UUID.randomUUID(), this, player, entries, new HashSet<>(), size);
     }
 
     public Optional<BingoCard> getCard(User user) {

@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Data
 @Slf4j
@@ -58,10 +59,11 @@ public class BingoCard {
         log.info("Background image cached in {}ms at {}", stopwatch.stop().toMillis(), BACKGROUND_CACHE.getAbsolutePath());
     }
 
-    @Id @ManyToOne BingoRound                      round;
-    @ManyToOne     Player                          player;
-    @ManyToMany    Map<@NotNull Integer, FoodItem> entries;
-    @ManyToMany    Set<FoodItem>                   calls;
+    @Id         UUID                            id = UUID.randomUUID();
+    @ManyToOne  BingoRound                      round;
+    @ManyToOne  Player                          player;
+    @ManyToMany Map<@NotNull Integer, FoodItem> entries;
+    @ManyToMany Set<FoodItem>                   calls;
     int size = 5;
 
     public boolean scanWin() {
