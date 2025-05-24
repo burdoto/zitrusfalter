@@ -58,6 +58,12 @@ public class ZitrusfalterApplication {
                 5).createCard(user).createImage(), "card.png")).build());
     }
 
+    @Command(permission = "8")
+    public static String shutdown(User user) {
+        System.exit(0);
+        return "Goodbye";
+    }
+
     @Bean
     public FileHandle configDir() {
         return new FileHandle("/srv/discord/zitrus", true);
