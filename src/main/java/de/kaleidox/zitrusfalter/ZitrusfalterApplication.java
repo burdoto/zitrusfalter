@@ -248,13 +248,16 @@ public class ZitrusfalterApplication {
                 @Command.Arg("name") @Description("Name der Speise") String name,
                 @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji,
                 @Command.Arg(value = "description", required = false) @Description("Beschreibung der Speise") String description,
-                @Command.Arg(value = "points", required = false) @Description("Punkte der Speise; standard = 1.0") double pointBonus,
-                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") double pointFactor
+                @Command.Arg(value = "points", required = false) @Description("Punkte der Speise; standard = 1.0") Double pointBonus,
+                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") Double pointFactor
         ) {
             var foods = bean(FoodItemRepo.class);
             if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
             var item = new FoodItem(name, emoji);
+            if (description != null) item.setDescription(description);
+            if (pointBonus != null) item.setPointBonus(pointBonus);
+            if (pointFactor != null) item.setPointFactor(pointFactor);
             foods.save(item);
             return "Eintrag erstellt:\n- %s".formatted(item);
         }
