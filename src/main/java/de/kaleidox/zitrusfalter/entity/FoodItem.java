@@ -20,6 +20,7 @@ public class FoodItem {
     @Id                 UUID   id          = UUID.randomUUID();
     @NotNull            String name;
     @Nullable           String emoji;
+    @Nullable           String description;
     @ColumnDefault("1") double pointBonus  = 1;
     @ColumnDefault("1") double pointFactor = 1;
 
@@ -30,6 +31,6 @@ public class FoodItem {
 
     @Override
     public String toString() {
-        return emoji + ' ' + name;
+        return emoji + ' ' + name + (description == null ? "" : " - " + description);
     }
 }

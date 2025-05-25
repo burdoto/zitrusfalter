@@ -10,8 +10,10 @@ import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import de.kaleidox.zitrusfalter.util.AutoFillProvider;
 import lombok.extern.slf4j.Slf4j;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.requests.GatewayIntent;
@@ -24,6 +26,7 @@ import org.comroid.api.func.comp.StringBasedComparator;
 import org.comroid.api.func.ext.Context;
 import org.comroid.api.func.util.Command;
 import org.comroid.api.io.FileHandle;
+import org.comroid.api.text.StringMode;
 import org.mariadb.jdbc.Driver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -34,6 +37,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
+import java.awt.*;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -45,6 +49,9 @@ import static org.comroid.api.func.util.Streams.*;
 @SpringBootApplication
 @ComponentScan(basePackageClasses = ApplicationContextProvider.class)
 public class ZitrusfalterApplication {
+    public static final Color THEME   = new Color(0xf8e61c);
+    public static final Color WARNING = new Color(0xc6293e);
+
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
     }
@@ -203,9 +210,19 @@ public class ZitrusfalterApplication {
             return new Command.Manager.Adapter$JDA.PaginatedList<>(channel,
                     () -> of(bean(FoodItemRepo.class).findAll()),
                     new StringBasedComparator<>(FoodItem::getName),
-                    FoodItem::getName,
+                    item -> new MessageEmbed.Field(item.toString(), item.getDescription(), false),
                     "Speisen",
-                    8).resend().submit().thenApply($ -> "Liste erstellt!");
+                    8) {
+                @Override
+                protected void finalizeEmbed(EmbedBuilder embed) {
+                    embed.setColor(THEME);
+                }
+
+                @Override
+                protected String pageText() {
+                    return super.pageText().replace("Page", "Seite");
+                }
+            }.resend().submit().thenApply($ -> "Liste erstellt!");
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
@@ -244,6 +261,19 @@ public class ZitrusfalterApplication {
             var foods = bean(FoodItemRepo.class);
             var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
             item.setEmoji(emoji);
+            foods.save(item);
+            return "Eintrag aktualisiert:\n- %s".formatted(item);
+        }
+
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Ändere die Beschreibung einer Speise")
+        public static String description(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
+                @Command.Arg(value = "description", stringMode = StringMode.GREEDY) String description
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            item.setDescription(description);
             foods.save(item);
             return "Eintrag aktualisiert:\n- %s".formatted(item);
         }
