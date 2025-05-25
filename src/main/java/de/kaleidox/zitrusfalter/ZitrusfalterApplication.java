@@ -28,6 +28,7 @@ import org.comroid.api.func.util.Command;
 import org.comroid.api.io.FileFlag;
 import org.comroid.api.io.FileHandle;
 import org.comroid.api.text.StringMode;
+import org.jetbrains.annotations.Nullable;
 import org.mariadb.jdbc.Driver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -51,8 +52,9 @@ import static org.comroid.api.func.util.Streams.*;
 @SpringBootApplication
 @ComponentScan(basePackageClasses = ApplicationContextProvider.class)
 public class ZitrusfalterApplication {
-    public static final Color THEME   = new Color(0xf8e61c);
-    public static final Color WARNING = new Color(0xc6293e);
+    public static final File  COMMAND_PURGE_FILE = new File("./purge_commands");
+    public static final Color THEME              = new Color(0xf8e61c);
+    public static final Color WARNING            = new Color(0xc6293e);
 
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
@@ -70,7 +72,8 @@ public class ZitrusfalterApplication {
     }
 
     @Command(permission = "8")
-    public static String shutdown(User user) {
+    public static String shutdown(User user, @Command.Arg(required = false) @Nullable Boolean purgeCommands) {
+        if (Boolean.TRUE.equals(purgeCommands)) FileFlag.enable(COMMAND_PURGE_FILE);
         System.exit(0);
         return "Goodbye";
     }
@@ -124,7 +127,7 @@ public class ZitrusfalterApplication {
     public Command.Manager.Adapter$JDA cmdrJdaAdapter(@Autowired Command.Manager cmdr, @Autowired JDA jda) throws InterruptedException {
         try {
             var adp = cmdr.new Adapter$JDA(jda.awaitReady());
-            adp.setPurgeCommands(FileFlag.consume(new File("./purge_commands")));
+            adp.setPurgeCommands(FileFlag.consume(COMMAND_PURGE_FILE));
             return adp;
         } finally {
             cmdr.initialize();
