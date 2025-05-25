@@ -13,12 +13,14 @@ import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.comroid.annotations.Description;
 import org.comroid.api.config.ConfigurationManager;
+import org.comroid.api.func.comp.StringBasedComparator;
 import org.comroid.api.func.ext.Context;
 import org.comroid.api.func.util.Command;
 import org.comroid.api.io.FileHandle;
@@ -33,7 +35,6 @@ import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -113,7 +114,7 @@ public class ZitrusfalterApplication {
     public Command.Manager.Adapter$JDA cmdrJdaAdapter(@Autowired Command.Manager cmdr, @Autowired JDA jda) throws InterruptedException {
         try {
             var adp = cmdr.new Adapter$JDA(jda.awaitReady());
-            adp.setPurgeCommands(true);
+            //adp.setPurgeCommands(true);
             return adp;
         } finally {
             cmdr.initialize();
@@ -196,12 +197,15 @@ public class ZitrusfalterApplication {
 
     @Command
     public static class food {
-        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Command(permission = "8589934592")
         @Description("Listet alle Speisen im gesamten Pool")
-        public static String list() {
-            return "Alle Einträge:\n" + of(bean(FoodItemRepo.class).findAll()).map(Objects::toString)
-                    .collect(atLeastOneOrElseGet(() -> "Es gibt keine Einträge"))
-                    .collect(Collectors.joining("\n- ", "- ", ""));
+        public static CompletableFuture<?> list(MessageChannelUnion channel) {
+            return new Command.Manager.Adapter$JDA.PaginatedList<>(channel,
+                    () -> of(bean(FoodItemRepo.class).findAll()),
+                    new StringBasedComparator<>(FoodItem::getName),
+                    FoodItem::getName,
+                    "Speisen",
+                    8).resend().submit().thenApply($ -> "Liste erstellt!");
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
