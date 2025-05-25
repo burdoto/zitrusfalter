@@ -54,6 +54,7 @@ public class ZitrusfalterApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> bean(JDA.class).shutdown()));
     }
 
     @Command(permission = "8")
