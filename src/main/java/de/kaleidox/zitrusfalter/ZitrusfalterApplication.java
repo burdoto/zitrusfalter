@@ -249,8 +249,8 @@ public class ZitrusfalterApplication {
                 @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji,
                 @Command.Arg(value = "description", required = false) @Description("Beschreibung der Speise") String description,
                 @Command.Arg(value = "points", required = false) @Description("Punkte der Speise; standard = 1.0") double pointBonus,
-                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") double pointFactor,
-                ) {
+                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") double pointFactor
+        ) {
             var foods = bean(FoodItemRepo.class);
             if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
