@@ -246,8 +246,11 @@ public class ZitrusfalterApplication {
         @Description({ "Füge eine Speise dem Pool hinzu", "Achtung: Name kann nicht bearbeitet werden" })
         public static String add(
                 @Command.Arg("name") @Description("Name der Speise") String name,
-                @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji
-        ) {
+                @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji,
+                @Command.Arg(value = "description", required = false) @Description("Beschreibung der Speise") String description,
+                @Command.Arg(value = "points", required = false) @Description("Punkte der Speise; standard = 1.0") double pointBonus,
+                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") double pointFactor,
+                ) {
             var foods = bean(FoodItemRepo.class);
             if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
@@ -286,11 +289,37 @@ public class ZitrusfalterApplication {
         @Description("Ändere die Beschreibung einer Speise")
         public static String description(
                 @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
-                @Command.Arg(value = "description", stringMode = StringMode.GREEDY) String description
+                @Command.Arg(value = "description", stringMode = StringMode.GREEDY) @Description("Beschreibung der Speise") String description
         ) {
             var foods = bean(FoodItemRepo.class);
             var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
             item.setDescription(description);
+            foods.save(item);
+            return "Eintrag aktualisiert:\n- %s".formatted(item);
+        }
+
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Ändere die Punkte für eine Speise")
+        public static String points(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
+                @Command.Arg("points") @Description("Punkte für die Speise; standard = 1.0") double points
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            item.setPointBonus(points);
+            foods.save(item);
+            return "Eintrag aktualisiert:\n- %s".formatted(item);
+        }
+
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
+        @Description("Ändere den Bonusfaktor für Speise")
+        public static String factor(
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
+                @Command.Arg("factor") @Description("Bonusfaktor für die Speise; standard = 1.0") double factor
+        ) {
+            var foods = bean(FoodItemRepo.class);
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            item.setPointFactor(factor);
             foods.save(item);
             return "Eintrag aktualisiert:\n- %s".formatted(item);
         }
