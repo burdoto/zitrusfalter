@@ -72,7 +72,7 @@ public class ZitrusfalterApplication {
     }
 
     @Command(permission = "8")
-    public static String shutdown(User user, @Command.Arg(required = false) @Nullable Boolean purgeCommands) {
+    public static String shutdown(User user, @Command.Arg(value = "purgecommands", required = false) @Nullable Boolean purgeCommands) {
         if (Boolean.TRUE.equals(purgeCommands)) FileFlag.enable(COMMAND_PURGE_FILE);
         System.exit(0);
         return "Goodbye";
