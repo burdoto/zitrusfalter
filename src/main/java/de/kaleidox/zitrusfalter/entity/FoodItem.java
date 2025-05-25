@@ -29,6 +29,10 @@ public class FoodItem {
         this.emoji = emoji;
     }
 
+    public @Nullable String getDescription() {
+        return description == null ? "Keine Beschreibung" : description;
+    }
+
     @Override
     public String toString() {
         return (emoji == null ? "" : emoji + " ") + name + (description == null ? "" : " - " + description);
