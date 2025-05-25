@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
 (
-  cd japi
-  git pull
+  cd japi || exit
+  git pull origin main
 )
 
-git pull
+git pull origin main
 ./gradlew bootRun
