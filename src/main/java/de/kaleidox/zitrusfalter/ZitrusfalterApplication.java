@@ -175,6 +175,17 @@ public class ZitrusfalterApplication {
         }
 
         @Command
+        @Description("Zeige deine Karte an")
+        public static Object card(User user) {
+            return bean(BingoRoundRepo.class).current()
+                    .flatMap(round -> round.getCard(user))
+                    .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
+                            .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                            .build())
+                    .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist");
+        }
+
+        @Command
         @Description("Markiere eine Speise auf deiner Karte")
         public static String mark(
                 User user, @Command.Arg(value = "name",
