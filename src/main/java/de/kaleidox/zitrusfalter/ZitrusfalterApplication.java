@@ -25,6 +25,7 @@ import org.comroid.api.config.ConfigurationManager;
 import org.comroid.api.func.comp.StringBasedComparator;
 import org.comroid.api.func.ext.Context;
 import org.comroid.api.func.util.Command;
+import org.comroid.api.io.FileFlag;
 import org.comroid.api.io.FileHandle;
 import org.comroid.api.text.StringMode;
 import org.mariadb.jdbc.Driver;
@@ -38,6 +39,7 @@ import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
 import java.awt.*;
+import java.io.File;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -122,7 +124,7 @@ public class ZitrusfalterApplication {
     public Command.Manager.Adapter$JDA cmdrJdaAdapter(@Autowired Command.Manager cmdr, @Autowired JDA jda) throws InterruptedException {
         try {
             var adp = cmdr.new Adapter$JDA(jda.awaitReady());
-            //adp.setPurgeCommands(true);
+            adp.setPurgeCommands(FileFlag.consume(new File("./purge_commands")));
             return adp;
         } finally {
             cmdr.initialize();
