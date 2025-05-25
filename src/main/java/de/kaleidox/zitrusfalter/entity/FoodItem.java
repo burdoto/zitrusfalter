@@ -31,6 +31,6 @@ public class FoodItem {
 
     @Override
     public String toString() {
-        return emoji + ' ' + name + (description == null ? "" : " - " + description);
+        return (emoji == null ? "" : emoji + " ") + name + (description == null ? "" : " - " + description);
     }
 }
