@@ -1,9 +1,10 @@
 package de.kaleidox.zitrusfalter.entity;
 
+import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
 import de.kaleidox.zitrusfalter.repo.PlayerRepo;
-import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
@@ -22,26 +23,28 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
+
 @Data
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
 public class BingoRound {
-    @Id         long           number;
-    @OneToMany  Set<BingoCard> cards;
-    @ManyToMany Set<FoodItem>  calls;
-    @ManyToMany Set<Player> winners = new HashSet<>();
+    @Id                                  long           number;
+    @OneToMany(fetch = FetchType.EAGER)  Set<BingoCard> cards   = new HashSet<>();
+    @ManyToMany(fetch = FetchType.EAGER) Set<FoodItem>  calls   = new HashSet<>();
+    @ManyToMany(fetch = FetchType.EAGER) Set<Player>    winners = new HashSet<>();
     boolean ended = false;
     int     size  = 5;
 
     public BingoCard createCard(User user) {
-        var player = ApplicationContextProvider.bean(PlayerRepo.class).get(user);
+        var player = bean(PlayerRepo.class).get(user);
 
         var rng     = new Random();
         var lim     = size * size;
         var mid     = (int) Math.ceil(size / 2f) - 1;
         var entries = new HashMap<Integer, FoodItem>(lim);
-        var foods   = Streams.of(ApplicationContextProvider.bean(FoodItemRepo.class).findAll()).collect(Collectors.toList());
+        var foods   = Streams.of(bean(FoodItemRepo.class).findAll()).collect(Collectors.toList());
 
         for (var i = 0; i < lim; i++) {
             if ((i / size) == mid && i % size == mid) continue;
@@ -50,7 +53,9 @@ public class BingoRound {
             entries.put(i, value);
         }
 
-        return new BingoCard(UUID.randomUUID(), this, player, entries, new HashSet<>(), size);
+        var card = new BingoCard(UUID.randomUUID(), player, entries, new HashSet<>(), size);
+        cards.add(card);
+        return card;
     }
 
     public Optional<BingoCard> getCard(User user) {

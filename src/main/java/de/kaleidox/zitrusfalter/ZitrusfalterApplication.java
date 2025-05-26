@@ -3,7 +3,6 @@ package de.kaleidox.zitrusfalter;
 import de.kaleidox.zitrusfalter.entity.BingoCard;
 import de.kaleidox.zitrusfalter.entity.BingoRound;
 import de.kaleidox.zitrusfalter.entity.FoodItem;
-import de.kaleidox.zitrusfalter.entity.Player;
 import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
@@ -43,7 +42,6 @@ import java.awt.*;
 import java.io.File;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 import static org.comroid.api.func.util.Streams.*;
@@ -59,16 +57,6 @@ public class ZitrusfalterApplication {
     public static void main(String[] args) {
         SpringApplication.run(ZitrusfalterApplication.class, args);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> bean(JDA.class).shutdown()));
-    }
-
-    @Command(permission = "8")
-    public static CompletableFuture<MessageCreateData> test(User user) {
-        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setFiles(FileUpload.fromData(new BingoRound(-1,
-                new HashSet<>(),
-                new HashSet<>(),
-                new HashSet<>(),
-                false,
-                5).createCard(user).createImage(), "card.png")).build());
     }
 
     @Command(permission = "8")
@@ -156,23 +144,23 @@ public class ZitrusfalterApplication {
             var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
 
             if (!round.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
+            bean(BingoRoundRepo.class).save(round);
 
-            return round.scanWinners()
-                    .map(Player::getUser)
-                    .map(User::getEffectiveName)
-                    .collect(atLeastOneOrElseGet(() -> "%s wurde aufgerufen!".formatted(name)))
-                    .collect(Collectors.joining("\n- ",
-                            "# Wir haben Gewinner!\nAlle Gewinner müssen selbst Bingo aufrufen, bevor der nächste call erfolgt\n- ",
-                            ""));
+            return "%s wurde aufgerufen!".formatted(name);
         }
 
         @Command
         @Description("Trete der aktuellen Runde bei")
         public static CompletableFuture<Object> join(User user) {
             return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
-                    .map(round -> bean(BingoCardRepo.class).save(round.createCard(user)))
+                    .map(round -> {
+                        var card = round.createCard(user);
+                        card = bean(BingoCardRepo.class).save(card);
+                        bean(BingoRoundRepo.class).save(round);
+                        return card;
+                    })
                     .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
-                            .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                            .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                             .build())
                     .orElse("Es läuft derzeit keine Runde"));
         }
@@ -183,7 +171,7 @@ public class ZitrusfalterApplication {
             return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
                     .flatMap(round -> round.getCard(user))
                     .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
-                            .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                            .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                             .build())
                     .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist"));
         }
@@ -200,26 +188,34 @@ public class ZitrusfalterApplication {
             var card  = round.getCard(user).orElseThrow(() -> new Command.Error("Du hast keine Karten"));
 
             if (!round.getCalls().contains(food)) throw new Command.Error("Diese Speise ist nicht aufgerufen worden");
+            if (!card.getEntries().containsValue(food)) throw new Command.Error("Das steht nicht auf deiner Karte");
             if (!card.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
             if (card.scanWin()) log.info("{} hat eine Gewinnerkarte!", user.getEffectiveName());
+            bean(BingoCardRepo.class).save(card);
 
             return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("%s wurde markiert".formatted(food))
-                    .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                    .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                     .build());
         }
 
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Rufe 'Bingo!' wenn du soweit bist")
         public static CompletableFuture<MessageCreateData> shout(User user) {
-            var card = bean(BingoRoundRepo.class).current()
-                    .stream()
+            var current = bean(BingoRoundRepo.class).current();
+            var card = current.stream()
                     .flatMap(round -> round.getCards().stream())
                     .filter(it -> it.getPlayer().getUser().equals(user))
                     .findAny()
                     .filter(BingoCard::scanWin)
                     .orElseThrow(() -> new Command.Error("Du hast noch kein Bingo"));
+
+            var round = current.orElseThrow();
+            round.setEnded(true);
+            round.getWinners().add(card.getPlayer());
+            bean(BingoRoundRepo.class).save(round);
+
             return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("# Bingo!")
-                    .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                    .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                     .build());
         }
     }

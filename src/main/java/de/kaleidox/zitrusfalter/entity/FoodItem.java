@@ -35,6 +35,10 @@ public class FoodItem {
 
     @Override
     public String toString() {
-        return "%s%s%s (%.1f Punkte, %.0f%% Bonus)".formatted(emoji == null ? "" : emoji + " ", name, description == null ? "" : " - " + description, pointBonus, (pointFactor-1)*100);
+        return "%s%s%s (%.1f Punkte, %.0f%% Bonus)".formatted(emoji == null ? "" : emoji + " ",
+                name,
+                description == null ? "" : " - " + description,
+                pointBonus,
+                (pointFactor - 1) * 100);
     }
 }

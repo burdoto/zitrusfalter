@@ -1,6 +1,7 @@
 package de.kaleidox.zitrusfalter.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
@@ -25,9 +26,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 @Slf4j
@@ -59,11 +62,10 @@ public class BingoCard {
         log.info("Background image cached in {}ms at {}", stopwatch.stop().toMillis(), BACKGROUND_CACHE.getAbsolutePath());
     }
 
-    @Id         UUID                            id = UUID.randomUUID();
-    @ManyToOne  BingoRound                      round;
-    @ManyToOne  Player                          player;
-    @ManyToMany Map<@NotNull Integer, FoodItem> entries;
-    @ManyToMany Set<FoodItem>                   calls;
+    @Id                                  UUID                            id      = UUID.randomUUID();
+    @ManyToOne                           Player                          player;
+    @ManyToMany(fetch = FetchType.EAGER) Map<@NotNull Integer, FoodItem> entries = new ConcurrentHashMap<>();
+    @ManyToMany(fetch = FetchType.EAGER) Set<FoodItem>                   calls   = new HashSet<>();
     int size = 5;
 
     public boolean scanWin() {
@@ -94,7 +96,7 @@ public class BingoCard {
         return false;
     }
 
-    public InputStream createImage() {
+    public InputStream generateImage() {
         BufferedImage img;
 
         // load background
