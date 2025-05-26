@@ -9,7 +9,6 @@ public interface PlayerRepo extends CrudRepository<Player, @NotNull Long> {
     default Player get(User user) {
         var id = user.getIdLong();
         if (existsById(id)) return findById(id).orElseThrow();
-        // do not save() because we dont want zero-data in database
-        return new Player(id, 0, 0);
+        return save(new Player(id, 0, 0));
     }
 }

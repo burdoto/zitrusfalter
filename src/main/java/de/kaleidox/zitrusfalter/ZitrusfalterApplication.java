@@ -168,31 +168,32 @@ public class ZitrusfalterApplication {
 
         @Command
         @Description("Trete der aktuellen Runde bei")
-        public static Object join(User user) {
-            return bean(BingoRoundRepo.class).current()
+        public static CompletableFuture<Object> join(User user) {
+            return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
                     .map(round -> bean(BingoCardRepo.class).save(round.createCard(user)))
                     .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
                             .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
                             .build())
-                    .orElse("Es läuft derzeit keine Runde");
+                    .orElse("Es läuft derzeit keine Runde"));
         }
 
         @Command
         @Description("Zeige deine Karte an")
-        public static Object card(User user) {
-            return bean(BingoRoundRepo.class).current()
+        public static CompletableFuture<Object> card(User user) {
+            return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
                     .flatMap(round -> round.getCard(user))
                     .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
                             .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
                             .build())
-                    .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist");
+                    .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist"));
         }
 
         @Command
         @Description("Markiere eine Speise auf deiner Karte")
-        public static String mark(
+        public static CompletableFuture<MessageCreateData> mark(
                 User user, @Command.Arg(value = "name",
-                                        autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("Name der Speise") String name
+                                        autoFillProvider = AutoFillProvider.CalledFoods.class) @Description(
+                        "Name der Speise") String name
         ) {
             var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
             var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
@@ -202,20 +203,24 @@ public class ZitrusfalterApplication {
             if (!card.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
             if (card.scanWin()) log.info("{} hat eine Gewinnerkarte!", user.getEffectiveName());
 
-            return "%s wurde markiert".formatted(food);
+            return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("%s wurde markiert".formatted(food))
+                    .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                    .build());
         }
 
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Rufe 'Bingo!' wenn du soweit bist")
-        public static String shout(User user) {
-            return bean(BingoRoundRepo.class).current()
+        public static CompletableFuture<MessageCreateData> shout(User user) {
+            var card = bean(BingoRoundRepo.class).current()
                     .stream()
                     .flatMap(round -> round.getCards().stream())
-                    .filter(card -> card.getPlayer().getUser().equals(user))
+                    .filter(it -> it.getPlayer().getUser().equals(user))
                     .findAny()
                     .filter(BingoCard::scanWin)
-                    .map($ -> "Bingo!")
                     .orElseThrow(() -> new Command.Error("Du hast noch kein Bingo"));
+            return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("# Bingo!")
+                    .setFiles(FileUpload.fromData(card.createImage(), "card.png"))
+                    .build());
         }
     }
 
