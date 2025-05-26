@@ -227,7 +227,7 @@ public class ZitrusfalterApplication {
             return new Command.Manager.Adapter$JDA.PaginatedList<>(channel,
                     () -> of(bean(FoodItemRepo.class).findAll()),
                     new StringBasedComparator<>(FoodItem::getName),
-                    item -> new MessageEmbed.Field(item.toString(), item.getDescription(), false),
+                    item -> new MessageEmbed.Field(item.getName(), item.toString(), false),
                     "Speisen",
                     8) {
                 @Override
