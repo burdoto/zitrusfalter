@@ -124,7 +124,7 @@ public class ZitrusfalterApplication {
 
     @Command
     public static class bingo {
-        @Command(permission = "8589934592")
+        @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Starte eine neue Runde")
         public static String start() {
             var rounds = ApplicationContextProvider.bean(BingoRoundRepo.class);
@@ -149,7 +149,7 @@ public class ZitrusfalterApplication {
             return "%s wurde aufgerufen!".formatted(name);
         }
 
-        @Command
+        @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Trete der aktuellen Runde bei")
         public static CompletableFuture<Object> join(User user) {
             return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
@@ -165,7 +165,7 @@ public class ZitrusfalterApplication {
                     .orElse("Es läuft derzeit keine Runde"));
         }
 
-        @Command
+        @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Zeige deine Karte an")
         public static CompletableFuture<Object> card(User user) {
             return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
@@ -176,7 +176,7 @@ public class ZitrusfalterApplication {
                     .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist"));
         }
 
-        @Command
+        @Command(privacy = Command.PrivacyLevel.PUBLIC)
         @Description("Markiere eine Speise auf deiner Karte")
         public static CompletableFuture<MessageCreateData> mark(
                 User user, @Command.Arg(value = "name",
