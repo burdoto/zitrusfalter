@@ -255,6 +255,7 @@ public class ZitrusfalterApplication {
             var foods = bean(FoodItemRepo.class);
             if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
+            if (description.isBlank() || "food".equals(description)) emoji = null;
             var item = new FoodItem(name, emoji);
             if (description != null) item.setDescription(description);
             if (pointBonus != null) item.setPointBonus(pointBonus);
