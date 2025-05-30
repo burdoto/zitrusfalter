@@ -3,6 +3,7 @@ package de.kaleidox.zitrusfalter;
 import de.kaleidox.zitrusfalter.entity.BingoCard;
 import de.kaleidox.zitrusfalter.entity.BingoRound;
 import de.kaleidox.zitrusfalter.entity.FoodItem;
+import de.kaleidox.zitrusfalter.entity.Player;
 import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 import static org.comroid.api.func.util.Streams.*;
@@ -57,6 +59,32 @@ public class BingoController {
         bean(BingoRoundRepo.class).save(round);
 
         return "%s wurde aufgerufen!".formatted(name);
+    }
+
+    @Command(privacy = Command.PrivacyLevel.PUBLIC)
+    @Description("Zeige alle mitspielenden User")
+    public static String players(User user) {
+        return bean(BingoRoundRepo.class).current()
+                .orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"))
+                .getCards()
+                .stream()
+                .map(BingoCard::getPlayer)
+                .map(Player::getUser)
+                .map(User::getEffectiveName)
+                .collect(atLeastOneOrElseGet(() -> "Es ist noch niemand der aktuellen Runde beigetreten"))
+                .collect(Collectors.joining("\n- ", "Spieler in dieser Runde:\n- ", ""));
+    }
+
+    @Command(privacy = Command.PrivacyLevel.PUBLIC)
+    @Description("Zeige alle aufgerufenen Speisen")
+    public static String called(User user) {
+        return bean(BingoRoundRepo.class).current()
+                .orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"))
+                .getCalls()
+                .stream()
+                .map(FoodItem::getName)
+                .collect(atLeastOneOrElseGet(() -> "Es ist noch keine Speise aufgerufen worden"))
+                .collect(Collectors.joining("\n- ", "Speisen in dieser Runde:\n- ", ""));
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
@@ -119,7 +147,7 @@ public class BingoController {
                 .filter(BingoCard::scanWin)
                 .orElseThrow(() -> new Command.Error("Du hast noch kein Bingo"));
 
-        var round = current.orElseThrow();
+        var round = current.orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
         round.setEnded(true);
         round.getWinners().add(card.getPlayer());
         bean(BingoRoundRepo.class).save(round);
