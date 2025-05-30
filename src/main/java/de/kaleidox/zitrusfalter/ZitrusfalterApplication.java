@@ -24,6 +24,7 @@ import org.springframework.core.annotation.Order;
 import javax.sql.DataSource;
 import java.awt.*;
 import java.io.File;
+import java.util.Locale;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 
@@ -45,6 +46,13 @@ public class ZitrusfalterApplication {
         if (Boolean.TRUE.equals(purgeCommands)) FileFlag.enable(COMMAND_PURGE_FILE);
         System.exit(0);
         return "Goodbye";
+    }
+
+    @Bean
+    public Locale locale() {
+        var locale = Locale.GERMAN;
+        Locale.setDefault(locale);
+        return locale;
     }
 
     @Bean

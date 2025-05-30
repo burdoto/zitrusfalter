@@ -12,6 +12,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
+import static org.comroid.api.text.Translation.*;
+
 @Data
 @Entity
 @NoArgsConstructor
@@ -30,12 +32,12 @@ public class FoodItem {
     }
 
     public @Nullable String getDescription() {
-        return description == null ? "Keine Beschreibung" : description;
+        return description == null ? str("generic.desc.notfound") : description;
     }
 
     @Override
     public String toString() {
-        return "%s%s%s (%.1f Punkte, %.0f%% Bonus)".formatted(emoji == null ? "" : emoji + " ",
+        return str("bingo.food.string.emoji.name.desc.points.factor").formatted(emoji == null ? "" : emoji + " ",
                 name,
                 description == null ? "" : " - " + description,
                 pointBonus,

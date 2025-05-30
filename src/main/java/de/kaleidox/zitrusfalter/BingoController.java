@@ -31,113 +31,114 @@ import java.util.stream.Collectors;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
 import static org.comroid.api.func.util.Streams.*;
+import static org.comroid.api.text.Translation.*;
 
 @Slf4j
 @Component
 @Command("bingo")
 public class BingoController {
     @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Starte eine neue Runde")
+    @Description("bingo.command.desc.start")
     public static String start() {
         var rounds = ApplicationContextProvider.bean(BingoRoundRepo.class);
-        if (rounds.current().isPresent()) throw new Command.Error("Es ist bereits eine Runde im Gange");
+        if (rounds.current().isPresent()) throw new Command.Error(str("bingo.round.error.ongoing"));
         long number = rounds.nextNumber();
         var  round  = new BingoRound(number, new HashSet<>(), new HashSet<>(), new HashSet<>(), false, 5);
         rounds.save(round);
-        return "Runde **%d** wurde gestartet".formatted(number);
+        return str("bingo.round.started").formatted(number);
     }
 
     @Command(permission = "8589934592")
-    @Description("Füge eine Speise dem aktuellen Bingo-Pool hinzu")
+    @Description("bingo.command.desc.call")
     public static String call(
-            @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
+            @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name
     ) {
-        var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
-        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
+        var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
+        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
 
-        if (!round.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
+        if (!round.getCalls().add(food)) throw new RuntimeException(str("bingo.error.card.invalid_add_call"));
         bean(BingoRoundRepo.class).save(round);
 
-        return "%s wurde aufgerufen!".formatted(name);
+        return str("bingo.call").formatted(name);
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Zeige alle mitspielenden User")
+    @Description("bingo.command.desc.players")
     public static String players(User user) {
         return bean(BingoRoundRepo.class).current()
-                .orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"))
+                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
                 .getCards()
                 .stream()
                 .map(BingoCard::getPlayer)
                 .map(Player::getUser)
                 .map(User::getEffectiveName)
-                .collect(atLeastOneOrElseGet(() -> "Es ist noch niemand der aktuellen Runde beigetreten"))
-                .collect(Collectors.joining("\n- ", "Spieler in dieser Runde:\n- ", ""));
+                .collect(atLeastOneOrElseGet(() -> str("bingo.error.players.notfound")))
+                .collect(Collectors.joining(":\n- ", str("bingo.round.players") + "\n- ", ""));
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Zeige alle aufgerufenen Speisen")
+    @Description("bingo.command.desc.called")
     public static String called(User user) {
         return bean(BingoRoundRepo.class).current()
-                .orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"))
+                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
                 .getCalls()
                 .stream()
                 .map(FoodItem::getName)
-                .collect(atLeastOneOrElseGet(() -> "Es ist noch keine Speise aufgerufen worden"))
-                .collect(Collectors.joining("\n- ", "Speisen in dieser Runde:\n- ", ""));
+                .collect(atLeastOneOrElseGet(() -> str("bingo.error.call.food.notfound")))
+                .collect(Collectors.joining(":\n- ", str("bingo.round.called") + "\n- ", ""));
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Trete der aktuellen Runde bei")
+    @Description("bingo.command.desc.join")
     public static CompletableFuture<Object> join(User user) {
         return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
                 .map(round -> {
                     var card = round.createCard(user);
                     card = bean(BingoCardRepo.class).save(card);
                     bean(BingoRoundRepo.class).save(round);
-                    return card;
+                    return (BingoCard) card;
                 })
-                .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
+                .<Object>map(card -> new MessageCreateBuilder().addContent(str("bingo.card.yours"))
                         .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                         .build())
-                .orElse("Es läuft derzeit keine Runde"));
+                .orElseGet(() -> str("bingo.error.round.notfound")));
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Zeige deine Karte an")
+    @Description("bingo.command.desc.card")
     public static CompletableFuture<Object> card(User user) {
         return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
-                .flatMap(round -> round.getCard(user))
-                .<Object>map(card -> new MessageCreateBuilder().addContent("Deine Karte")
+                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
+                .getCard(user)
+                .<Object>map(card -> new MessageCreateBuilder().addContent(str("bingo.card.yours"))
                         .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                         .build())
-                .orElse("Du hast keine Karte, entweder weil keine Runde läuft oder weil du nicht beigetreten bist"));
+                .orElseGet(() -> str("bingo.error.card.notfound")));
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Markiere eine Speise auf deiner Karte")
+    @Description("bingo.command.desc.mark")
     public static CompletableFuture<MessageCreateData> mark(
             User user,
-            @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.CalledFoods.class) @Description(
-                    "Name der Speise") String name
+            @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("bingo.command.arg.food.name") String name
     ) {
-        var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error("Die Speise '%s' existiert nicht".formatted(name)));
-        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
-        var card  = round.getCard(user).orElseThrow(() -> new Command.Error("Du hast keine Karten"));
+        var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
+        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
+        var card  = round.getCard(user).orElseThrow(() -> new Command.Error(str("bingo.error.card.notfound")));
 
-        if (!round.getCalls().contains(food)) throw new Command.Error("Diese Speise ist nicht aufgerufen worden");
-        if (!card.getEntries().containsValue(food)) throw new Command.Error("Das steht nicht auf deiner Karte");
-        if (!card.getCalls().add(food)) throw new RuntimeException("Could not add call to card");
-        if (card.scanWin()) log.info("{} hat eine Gewinnerkarte!", user.getEffectiveName());
+        if (!round.getCalls().contains(food)) throw new Command.Error(str("bingo.error.round.call.notfound"));
+        if (!card.getEntries().containsValue(food)) throw new Command.Error(str("bingo.error.card.food.notfound"));
+        if (!card.getCalls().add(food)) throw new RuntimeException(str("bingo.error.card.invalid_add_call"));
+        if (card.scanWin()) log.info("{} has a winning card", user.getEffectiveName());
         bean(BingoCardRepo.class).save(card);
 
-        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("%s wurde markiert".formatted(food))
+        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent(str("bingo.card.call.added").formatted(food))
                 .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                 .build());
     }
 
     @Command(privacy = Command.PrivacyLevel.PUBLIC)
-    @Description("Rufe 'Bingo!' wenn du soweit bist")
+    @Description("bingo.command.desc.shout")
     public static CompletableFuture<MessageCreateData> shout(User user) {
         var current = bean(BingoRoundRepo.class).current();
         var card = current.stream()
@@ -145,14 +146,14 @@ public class BingoController {
                 .filter(it -> it.getPlayer().getUser().equals(user))
                 .findAny()
                 .filter(BingoCard::scanWin)
-                .orElseThrow(() -> new Command.Error("Du hast noch kein Bingo"));
+                .orElseThrow(() -> new Command.Error(str("bingo.error.shout.invalid")));
 
-        var round = current.orElseThrow(() -> new Command.Error("Derzeit gibt es keine aktive Runde"));
+        var round = current.orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
         round.setEnded(true);
         round.getWinners().add(card.getPlayer());
         bean(BingoRoundRepo.class).save(round);
 
-        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent("# Bingo!")
+        return CompletableFuture.supplyAsync(() -> new MessageCreateBuilder().setContent(str("bingo.shout"))
                 .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
                 .build());
     }
@@ -160,13 +161,13 @@ public class BingoController {
     @Command
     public static class food {
         @Command(permission = "8589934592")
-        @Description("Listet alle Speisen im gesamten Pool")
+        @Description("bingo.command.desc.food.list")
         public static CompletableFuture<?> list(MessageChannelUnion channel) {
             return new Command.Manager.Adapter$JDA.PaginatedList<>(channel,
                     () -> of(bean(FoodItemRepo.class).findAll()),
                     new StringBasedComparator<>(FoodItem::getName),
                     item -> new MessageEmbed.Field(item.getName(), item.toString(), false),
-                    "Speisen",
+                    str("bingo.plural.food"),
                     8) {
                 @Override
                 protected void finalizeEmbed(EmbedBuilder embed) {
@@ -175,22 +176,22 @@ public class BingoController {
 
                 @Override
                 protected String pageText() {
-                    return super.pageText().replace("Page", "Seite");
+                    return super.pageText().replace("Page", str("generic.noun.singular.page"));
                 }
-            }.resend().submit().thenApply($ -> "Liste erstellt!");
+            }.resend().submit().thenApply($ -> str("generic.phrase.list_created"));
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description({ "Füge eine Speise dem Pool hinzu", "Achtung: Name kann nicht bearbeitet werden" })
+        @Description("bingo.command.desc.food.add")
         public static String add(
-                @Command.Arg("name") @Description("Name der Speise") String name,
-                @Command.Arg(value = "emoji", required = false) @Description("Emoji-Gruppe der Speise") String emoji,
-                @Command.Arg(value = "description", required = false) @Description("Beschreibung der Speise") String description,
-                @Command.Arg(value = "points", required = false) @Description("Punkte der Speise; standard = 1.0") Double pointBonus,
-                @Command.Arg(value = "factor", required = false) @Description("Bonusfaktor der Speise; standard: 1.0") Double pointFactor
+                @Command.Arg("name") @Description("bingo.command.arg.food.name") String name,
+                @Command.Arg(value = "emoji", required = false) @Description("bingo.command.arg.food.emoji") String emoji,
+                @Command.Arg(value = "description", required = false) @Description("bingo.command.arg.food.description") String description,
+                @Command.Arg(value = "points", required = false) @Description("bingo.command.arg.food.bonus") Double pointBonus,
+                @Command.Arg(value = "factor", required = false) @Description("bingo.command.arg.food.factor") Double pointFactor
         ) {
             var foods = bean(FoodItemRepo.class);
-            if (foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert bereits".formatted(name));
+            if (foods.existsByName(name)) throw new Command.Error(str("bingo.error.food.exists").formatted(name));
             if (emoji.isBlank() || "food".equals(emoji)) emoji = null;
             if (description.isBlank() || "food".equals(description)) emoji = null;
             var item = new FoodItem(name, emoji);
@@ -198,94 +199,95 @@ public class BingoController {
             if (pointBonus != null) item.setPointBonus(pointBonus);
             if (pointFactor != null) item.setPointFactor(pointFactor);
             foods.save(item);
-            return "Eintrag erstellt:\n- %s".formatted(item);
+            return str("bingo.food.added") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ändere den Namen einer Speise")
+        @Description("bingo.command.desc.food.rename")
         public static String rename(
-                @Command.Arg(value = "old", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Alter Name der Speise") String oldName,
-                @Command.Arg(value = "new") @Description("Neuer Name der Speise") String newName
+                @Command.Arg(value = "old",
+                             autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name.old") String oldName,
+                @Command.Arg(value = "new") @Description("bingo.command.arg.food.name.new") String newName
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findByName(oldName).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(oldName)));
+            var item  = foods.findByName(oldName).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(oldName)));
             item.setName(newName);
             foods.save(item);
-            return "Eintrag aktualisiert:\n- %s".formatted(item);
+            return str("bingo.food.changed") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ändere das Emoji einer Speise")
+        @Description("bingo.command.desc.food.emoji")
         public static String emoji(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
-                @Command.Arg("emoji") @Description("Emoji der Speise") String emoji
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name,
+                @Command.Arg("emoji") @Description("bingo.command.arg.food.emoji") String emoji
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
             item.setEmoji(emoji);
             foods.save(item);
-            return "Eintrag aktualisiert:\n- %s".formatted(item);
+            return str("bingo.food.changed") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ändere die Beschreibung einer Speise")
+        @Description("bingo.command.desc.food.description")
         public static String description(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
-                @Command.Arg(value = "description", stringMode = StringMode.GREEDY) @Description("Beschreibung der Speise") String description
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name,
+                @Command.Arg(value = "description", stringMode = StringMode.GREEDY) @Description("bingo.command.arg.food.description") String description
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
             item.setDescription(description);
             foods.save(item);
-            return "Eintrag aktualisiert:\n- %s".formatted(item);
+            return str("bingo.food.changed") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ändere die Punkte für eine Speise")
+        @Description("bingo.command.desc.food.points")
         public static String points(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
-                @Command.Arg("points") @Description("Punkte für die Speise; standard = 1.0") double points
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name,
+                @Command.Arg("points") @Description("bingo.command.arg.food.bonus") double points
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
             item.setPointBonus(points);
             foods.save(item);
-            return "Eintrag aktualisiert:\n- %s".formatted(item);
+            return str("bingo.food.changed") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ändere den Bonusfaktor für Speise")
+        @Description("bingo.command.desc.food.factor")
         public static String factor(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name,
-                @Command.Arg("factor") @Description("Bonusfaktor für die Speise; standard = 1.0") double factor
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name,
+                @Command.Arg("factor") @Description("bingo.command.arg.food.factor") double factor
         ) {
             var foods = bean(FoodItemRepo.class);
-            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error("Eintrag `%s` existiert nicht".formatted(name)));
+            var item  = foods.findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
             item.setPointFactor(factor);
             foods.save(item);
-            return "Eintrag aktualisiert:\n- %s".formatted(item);
+            return str("bingo.food.changed") + ":\n- %s".formatted(item);
         }
 
         @Command(permission = "8589934592", privacy = Command.PrivacyLevel.PUBLIC)
-        @Description({ "Entferne eine Speise aus dem Pool", "Kann Probleme mit vergangenen Runden verursachen" })
+        @Description("bingo.command.desc.food.delete")
         public static String remove(
-                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("Name der Speise") String name
+                @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name
         ) {
             var foods = bean(FoodItemRepo.class);
-            if (!foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
+            if (!foods.existsByName(name)) throw new Command.Error(str("bingo.error.food.notfound").formatted(name));
             foods.deleteByName(name);
-            return "Eintrag gelöscht: `%s`".formatted(name);
+            return str("bingo.food.deleted") + ": `%s`".formatted(name);
         }
     }
 
     @Command
     public static class score {
         @Command(privacy = Command.PrivacyLevel.PUBLIC)
-        @Description("Ruft die Scores von einem Spieler auf")
-        public static String of(@Command.Arg("player") @Description("Spieler, dessen Scores abgerufen werden sollen") User target) {
+        @Description("bingo.command.desc.score.of")
+        public static String of(@Command.Arg("player") @Description("bingo.command.arg.score.player") User target) {
             var players = bean(PlayerRepo.class);
             var idLong  = target.getIdLong();
-            return "%s hat insgesamt %d Siege und %.2f Punkte".formatted(target.getEffectiveName(),
+            return str("bingo.score.player.wins.score").formatted(target.getEffectiveName(),
                     Objects.requireNonNullElse(players.wins(idLong), 0),
                     Objects.requireNonNullElse(players.totalScore(idLong), 0d));
         }

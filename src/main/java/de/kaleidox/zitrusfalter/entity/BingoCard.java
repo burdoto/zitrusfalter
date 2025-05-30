@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.comroid.api.text.Translation.*;
+
 @Data
 @Slf4j
 @Entity
@@ -79,10 +81,11 @@ public class BingoCard {
             if (resource == null) throw new IllegalStateException("Background resource not found");
             img = ImageIO.read(resource);
         } catch (Exception e) {
-            throw new Command.Error("Hintergrund kann nicht geladen werden", e);
+            throw new Command.Error(str("generic.load.failed.background"), e);
         }
 
         // create image
+
         var g2        = img.createGraphics();
         var fontText  = new Font(g2.getFont().getName(), Font.PLAIN, 38);
         var fontCross = new Font(g2.getFont().getName(), Font.PLAIN, 180);
