@@ -41,7 +41,7 @@ public class BingoController {
     @Description("bingo.command.desc.start")
     public static String start() {
         var rounds = ApplicationContextProvider.bean(BingoRoundRepo.class);
-        if (rounds.current().isPresent()) throw new Command.Error(str("bingo.round.error.ongoing"));
+        if (rounds.current().isPresent()) throw new Command.Error("bingo.round.error.ongoing");
         long number = rounds.nextNumber();
         var  round  = new BingoRound(number, new HashSet<>(), new HashSet<>(), new HashSet<>(), false, 5);
         rounds.save(round);
@@ -54,7 +54,7 @@ public class BingoController {
             @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.AllFoodNames.class) @Description("bingo.command.arg.food.name") String name
     ) {
         var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
-        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
+        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("bingo.error.round.notfound"));
 
         if (!round.getCalls().add(food)) throw new RuntimeException(str("bingo.error.card.invalid_add_call"));
         bean(BingoRoundRepo.class).save(round);
@@ -66,7 +66,7 @@ public class BingoController {
     @Description("bingo.command.desc.players")
     public static String players(User user) {
         return bean(BingoRoundRepo.class).current()
-                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
+                .orElseThrow(() -> new Command.Error("bingo.error.round.notfound"))
                 .getCards()
                 .stream()
                 .map(BingoCard::getPlayer)
@@ -80,7 +80,7 @@ public class BingoController {
     @Description("bingo.command.desc.called")
     public static String called(User user) {
         return bean(BingoRoundRepo.class).current()
-                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
+                .orElseThrow(() -> new Command.Error("bingo.error.round.notfound"))
                 .getCalls()
                 .stream()
                 .map(FoodItem::getName)
@@ -108,7 +108,7 @@ public class BingoController {
     @Description("bingo.command.desc.card")
     public static CompletableFuture<Object> card(User user) {
         return CompletableFuture.supplyAsync(() -> bean(BingoRoundRepo.class).current()
-                .orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")))
+                .orElseThrow(() -> new Command.Error("bingo.error.round.notfound"))
                 .getCard(user)
                 .<Object>map(card -> new MessageCreateBuilder().addContent(str("bingo.card.yours"))
                         .setFiles(FileUpload.fromData(card.generateImage(), "card.png"))
@@ -123,11 +123,11 @@ public class BingoController {
             @Command.Arg(value = "name", autoFillProvider = AutoFillProvider.CalledFoods.class) @Description("bingo.command.arg.food.name") String name
     ) {
         var food  = bean(FoodItemRepo.class).findByName(name).orElseThrow(() -> new Command.Error(str("bingo.error.food.notfound").formatted(name)));
-        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
-        var card  = round.getCard(user).orElseThrow(() -> new Command.Error(str("bingo.error.card.notfound")));
+        var round = bean(BingoRoundRepo.class).current().orElseThrow(() -> new Command.Error("bingo.error.round.notfound"));
+        var card  = round.getCard(user).orElseThrow(() -> new Command.Error("bingo.error.card.notfound"));
 
-        if (!round.getCalls().contains(food)) throw new Command.Error(str("bingo.error.round.call.notfound"));
-        if (!card.getEntries().containsValue(food)) throw new Command.Error(str("bingo.error.card.food.notfound"));
+        if (!round.getCalls().contains(food)) throw new Command.Error("bingo.error.round.call.notfound");
+        if (!card.getEntries().containsValue(food)) throw new Command.Error("bingo.error.card.food.notfound");
         if (!card.getCalls().add(food)) throw new RuntimeException(str("bingo.error.card.invalid_add_call"));
         if (card.scanWin()) log.info("{} has a winning card", user.getEffectiveName());
         bean(BingoCardRepo.class).save(card);
@@ -146,9 +146,9 @@ public class BingoController {
                 .filter(it -> it.getPlayer().getUser().equals(user))
                 .findAny()
                 .filter(BingoCard::scanWin)
-                .orElseThrow(() -> new Command.Error(str("bingo.error.shout.invalid")));
+                .orElseThrow(() -> new Command.Error("bingo.error.shout.invalid"));
 
-        var round = current.orElseThrow(() -> new Command.Error(str("bingo.error.round.notfound")));
+        var round = current.orElseThrow(() -> new Command.Error("bingo.error.round.notfound"));
         round.setEnded(true);
         round.getWinners().add(card.getPlayer());
         bean(BingoRoundRepo.class).save(round);
