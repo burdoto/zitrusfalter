@@ -24,6 +24,7 @@ import org.comroid.api.text.StringMode;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static de.kaleidox.zitrusfalter.util.ApplicationContextProvider.*;
@@ -257,7 +258,9 @@ public class BingoController {
             public static String of(@Command.Arg("player") @Description("Spieler, dessen Scores abgerufen werden sollen") User target) {
                 var players = bean(PlayerRepo.class);
                 var idLong  = target.getIdLong();
-                return "%s hat insgesamt %d Siege und %.2f Punkte".formatted(target.getEffectiveName(), players.wins(idLong), players.totalScore(idLong));
+                return "%s hat insgesamt %d Siege und %.2f Punkte".formatted(target.getEffectiveName(),
+                        Objects.requireNonNullElse(players.wins(idLong), 0),
+                        Objects.requireNonNullElse(players.totalScore(idLong), 0d));
             }
         }
     }

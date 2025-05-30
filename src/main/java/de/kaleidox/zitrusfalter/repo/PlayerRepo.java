@@ -3,6 +3,7 @@ package de.kaleidox.zitrusfalter.repo;
 import de.kaleidox.zitrusfalter.entity.Player;
 import net.dv8tion.jda.api.entities.User;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -18,8 +19,8 @@ public interface PlayerRepo extends CrudRepository<Player, @NotNull Long> {
             select (SUM(e.pointBonus) * (SUM(e.pointFactor) - COUNT(e) + 1))
              from BingoCard c inner join c.calls e
              where c.player.userId = :#{#userId}""")
-    double totalScore(@Param("userId") long userId);
+    @Nullable Double totalScore(@Param("userId") long userId);
 
     @Query("select COUNT(r) from BingoRound r inner join r.winners w where w.userId = :#{#userId}")
-    int wins(@Param("userId") long userId);
+    @Nullable Integer wins(@Param("userId") long userId);
 }
