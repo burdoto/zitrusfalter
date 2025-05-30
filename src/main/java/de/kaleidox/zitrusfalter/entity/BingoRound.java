@@ -1,6 +1,5 @@
 package de.kaleidox.zitrusfalter.entity;
 
-import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
 import de.kaleidox.zitrusfalter.repo.PlayerRepo;
 import jakarta.persistence.Entity;
