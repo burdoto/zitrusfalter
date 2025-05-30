@@ -1,5 +1,6 @@
 package de.kaleidox.zitrusfalter.entity;
 
+import de.kaleidox.zitrusfalter.ZitrusfalterApplication;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -9,10 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.comroid.api.Polyfill;
 import org.comroid.api.data.Vector;
 import org.comroid.api.func.util.Command;
-import org.comroid.api.func.util.Stopwatch;
 import org.jetbrains.annotations.NotNull;
 
 import javax.imageio.ImageIO;
@@ -20,12 +19,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -38,29 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BingoCard {
-    public static final Vector.N2 START          = new Vector.N2(380, 490);
-    public static final int       INCREMENT      = 320;
-    public static final String    CROSS          = "❌";
-    public static final URL       BACKGROUND_URL = Polyfill.url("https://github.com/burdoto/zitrusfalter/blob/main/assets/background.png?raw=true");
-    public static final File      BACKGROUND_CACHE;
-
-    static {
-        var stopwatch = Stopwatch.start(BACKGROUND_URL);
-        try {
-            BACKGROUND_CACHE = File.createTempFile("background", ".png");
-            BACKGROUND_CACHE.deleteOnExit();
-
-            try (var resource = BACKGROUND_URL.openStream(); var fos = new FileOutputStream(BACKGROUND_CACHE)) {
-                resource.transferTo(fos);
-            } catch (Exception e) {
-                throw new Command.Error("Hintergrund kann nicht geladen werden", e);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Could not create temp file", e);
-        }
-
-        log.info("Background image cached in {}ms at {}", stopwatch.stop().toMillis(), BACKGROUND_CACHE.getAbsolutePath());
-    }
+    public static final Vector.N2 START     = new Vector.N2(380, 490);
+    public static final int       INCREMENT = 320;
+    public static final String    CROSS     = "❌";
 
     @Id                                  UUID                            id      = UUID.randomUUID();
     @ManyToOne                           Player                          player;
@@ -100,8 +75,9 @@ public class BingoCard {
         BufferedImage img;
 
         // load background
-        try (var fis = new FileInputStream(BACKGROUND_CACHE)) {
-            img = ImageIO.read(fis);
+        try (var resource = ZitrusfalterApplication.class.getResourceAsStream("/assets/background.png")) {
+            if (resource == null) throw new IllegalStateException("Background resource not found");
+            img = ImageIO.read(resource);
         } catch (Exception e) {
             throw new Command.Error("Hintergrund kann nicht geladen werden", e);
         }
