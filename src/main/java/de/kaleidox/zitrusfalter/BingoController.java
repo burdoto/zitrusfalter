@@ -6,6 +6,7 @@ import de.kaleidox.zitrusfalter.entity.FoodItem;
 import de.kaleidox.zitrusfalter.repo.BingoCardRepo;
 import de.kaleidox.zitrusfalter.repo.BingoRoundRepo;
 import de.kaleidox.zitrusfalter.repo.FoodItemRepo;
+import de.kaleidox.zitrusfalter.repo.PlayerRepo;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import de.kaleidox.zitrusfalter.util.AutoFillProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -246,6 +247,17 @@ public class BingoController {
                 if (!foods.existsByName(name)) throw new Command.Error("Eintrag `%s` existiert nicht".formatted(name));
                 foods.deleteByName(name);
                 return "Eintrag gelöscht: `%s`".formatted(name);
+            }
+        }
+
+        @Command
+        public static class score {
+            @Command(privacy = Command.PrivacyLevel.PUBLIC)
+            @Description("Ruft die Scores von einem Spieler auf")
+            public static String of(@Command.Arg("player") @Description("Spieler, dessen Scores abgerufen werden sollen") User target) {
+                var players = bean(PlayerRepo.class);
+                var idLong  = target.getIdLong();
+                return "%s hat insgesamt %d Siege und %.2f Punkte".formatted(target.getEffectiveName(), players.wins(idLong), players.totalScore(idLong));
             }
         }
     }
