@@ -24,16 +24,18 @@ public class GameSuggestionTriggers extends ListenerAdapter {
 
         var message = event.getMessage();
         if (message.getContentDisplay().matches(ANY_TEXT_WITH_URL)) message.addReaction(THUMBS_UP).flatMap($ -> message.addReaction(THUMBS_DOWN)).queue();
-        else event.getChannel()
-                .asThreadContainer()
-                .createThreadChannel(message.getContentStripped(),
-                        Optional.ofNullable(message.getMessageReference())
-                                .stream()
-                                .mapToLong(MessageReference::getMessageIdLong)
-                                .findAny()
-                                .orElseGet(event::getMessageIdLong))
-                .flatMap(thread -> thread.sendMessage(str("trigger.suggestion.threadstart").formatted(author.getAsMention())))
-                //.flatMap(msg -> msg.addReaction(Emoji.fromUnicode("⏲️")))
-                .queue();
+        else {
+            var channel = event.getChannel().asThreadContainer();
+            var content = message.getContentStripped();
+
+            Optional.ofNullable(message.getMessageReference())
+                    .map(MessageReference::getMessageIdLong)
+                    .map(ref -> channel.createThreadChannel(content, ref))
+                    .orElseGet(() -> channel.createThreadChannel(content))
+                    .flatMap(thread -> thread.sendMessage(str("trigger.suggestion.threadstart").formatted(author.getAsMention())))
+                    //.flatMap(msg -> msg.addReaction(Emoji.fromUnicode("⏲️")))
+                    .flatMap($ -> message.delete())
+                    .queue();
+        }
     }
 }
