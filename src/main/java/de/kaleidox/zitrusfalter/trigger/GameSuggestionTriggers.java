@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.entities.MessageReference;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.comroid.api.func.util.Debug;
 import org.intellij.lang.annotations.Language;
 
 import java.util.Optional;
@@ -14,7 +15,7 @@ public class GameSuggestionTriggers extends ListenerAdapter {
     public static final @Language("RegExp") String ANY_TEXT_WITH_URL = "(.|\\n)*\\[?(https?://\\S+\\n?)+(]\\([^\\n]+\\))?(.|\\n)*";
     public static final                     Emoji  THUMBS_UP         = Emoji.fromUnicode("\uD83D\uDC4D");
     public static final                     Emoji  THUMBS_DOWN       = Emoji.fromUnicode("\uD83D\uDC4E");
-    public static final                     long   CHANNEL_ID        = 1379940786174689320L;
+    public static final                     long   CHANNEL_ID        = Debug.isDebug() ? 803453788584804393L : 1379940786174689320L;
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
