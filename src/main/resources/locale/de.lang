@@ -51,3 +51,4 @@ generic.desc.notfound=Keine Beschreibung
 generic.load.failed.background=Hintergrund konnte nicht geladen werden
 generic.noun.singular.page=Seite
 generic.phrase.list_created=Liste erstellt
+trigger.suggestion.threadstart=## Hier sind nur Nachrichten mit Links erlaubt!%nFür Diskussionen, nutze bitte Threads%n%s

@@ -1,5 +1,6 @@
 package de.kaleidox.zitrusfalter;
 
+import de.kaleidox.zitrusfalter.trigger.GameSuggestionTriggers;
 import de.kaleidox.zitrusfalter.util.ApplicationContextProvider;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
@@ -80,6 +81,13 @@ public class ZitrusfalterApplication {
     @Bean
     public JDA jda(@Autowired BotConfig config) {
         return JDABuilder.create(config.token, GatewayIntent.getIntents(GatewayIntent.ALL_INTENTS)).build();
+    }
+
+    @Bean
+    public GameSuggestionTriggers gameSuggestionTriggers(@Autowired JDA jda) {
+        var triggers = new GameSuggestionTriggers();
+        jda.addEventListener(triggers);
+        return triggers;
     }
 
     @Bean
